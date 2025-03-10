@@ -11,10 +11,9 @@ class AEGenerateAgent {
             ApiKeyManagerInstance.getApiKeyGen(),
             ApiKeyManagerInstance.getModelGen(),
             {},
-'你是一个精通after effects脚本编程的专家，请根据用户的需求生成对应脚本代码，请直接生成可运行的代码。\
-输出的代码为ExtendScript，需要符合ECMAScript 3的标准。\
+'你是一个精通after effects脚本编程的专家，请根据用户的需求生成完整的ExtendScript脚本。\
 输出的代码使用```javascript ``` 包裹。\
-请整体输出一个可执行代码，不要分段，不要有解释和注释。',
+不要有解释和注释。',
             true,
         );
         this.onChunk = null;
@@ -35,6 +34,24 @@ class AEGenerateAgent {
             ApiKeyManagerInstance.getApiKeyGen(),
             ApiKeyManagerInstance.getModelGen()
         );
+    }
+
+    notifyChunk(message) {
+        if (this.onChunk) {
+            this.onChunk(message);
+        }
+    }
+
+    notifyFinish(message) {
+        if (this.onFinish) {
+            this.onFinish(message);
+        }
+    }
+
+    notifyError(message) {
+        if (this.onError) {
+            this.onError(message);
+        }
     }
 
     async genScript(message) {
@@ -58,65 +75,64 @@ class AEGenerateAgent {
         responseText = codeMatch ? codeMatch[1].trim() : responseText;
         return responseText;
     }
-
-    // TODO: 解耦逻辑，拆解为多个子节点执行
-    async sendMessage(message) {
-        this.resetApiKey();
-        if (this.onChunk) {
-            this.onChunk("生成脚本中...\n");
-        }
-        this.chatService.clearChatHistory();
+    async getScript(message) {
         const responseText = await this.genScript(message);
         if (responseText === "Error") {
-            return;
+            return null;
         }
-        if (this.onChunk) {
-            this.onChunk("\n脚本执行中...\n");
-        }
-        let executeResult = await executeAEScript(responseText);
-        if (executeResult.status === "success") {
-            if (this.onFinish) {
-                this.onFinish("执行完成\n" );
-            } 
-            return;
-        } else {
-            AEUndo();
-        }
-        if (this.onChunk) {
-            this.onChunk("\n脚本执行失败，error: " + executeResult.message + "\n");
-        }
-        let retryCount = 0;
-        while (executeResult.status === "error" && retryCount < 5) {
-            if (this.onChunk) {
-                this.onChunk("\n重新生成脚本中\n");
-            }
-            message = "脚本执行失败，error: " + executeResult.message + "\n请重新生成脚本。";
-            const responseText = await this.genScript(message);
-            if (responseText === "Error") {
-                return; 
-            }
-            if (this.onChunk) {
-                this.onChunk("\n脚本执行中...\n"); 
-            }
-            executeResult = await executeAEScript(responseText);
-            if (executeResult.status === "success") {
-                if (this.onFinish) {
-                    this.onFinish("执行完成\n");
-                }
-                return;
-            } else {
-                AEUndo();
-            }
-            if (this.onChunk) {
-                this.onChunk("\n脚本执行失败，error: " + executeResult.message + "\n");
-            }
-            retryCount++;
-        }
-        if (this.onError) {
-            this.onError("多次重试仍执行失败\n");
-        }
+        return responseText;
     }
 
+    async executeScript(script) {
+        this.notifyChunk("\n脚本执行中...\n");
+        let executeResult = await executeAEScript(script);
+
+        if (executeResult.status === "success") {
+            this.notifyFinish("执行完成\n");
+            return;
+        }
+
+        this.handleScriptError(executeResult);
+    }
+
+    async handleScriptError(executeResult) {
+        AEUndo();
+        this.notifyChunk("\n脚本执行失败，error: " + executeResult.message + "\n");
+
+        let retryCount = 0;
+        while (executeResult.status === "error" && retryCount < 5) {
+            this.notifyChunk("\n重新生成脚本中\n");
+            const newMessage = "脚本执行失败，error: " + executeResult.message + "\n请重新生成脚本。";
+            const newScript = await this.getScript(newMessage);
+            if (!newScript) return;
+
+            this.notifyChunk("\n脚本执行中...\n");
+            executeResult = await executeAEScript(newScript);
+
+            if (executeResult.status === "success") {
+                this.notifyFinish("执行完成\n");
+                return;
+            }
+
+            AEUndo();
+            this.notifyChunk("\n脚本执行失败，error: " + executeResult.message + "\n");
+            retryCount++;
+        }
+
+        this.notifyError("多次重试仍执行失败\n");
+    }
+
+    
+    async sendMessage(message) {
+        this.resetApiKey();
+        this.notifyChunk("生成脚本中...\n");
+        this.chatService.clearChatHistory();
+
+        const script = await this.getScript(message);
+        if (!script) return;
+
+        await this.executeScript(script);
+    }
 }
 
 let AEGenerateAgentInstance = new AEGenerateAgent();

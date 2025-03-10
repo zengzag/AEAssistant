@@ -5,18 +5,20 @@ export const executeAEScript = async (script) => {
     id++;
     try {
         const executeScript = `
-        app.beginUndoGroup("Script-${id}");
-        var TempComp = app.project.items.addComp("Temp Comp", 10, 10, 1, 10, 25);
-        TempComp && TempComp.remove();
-        var __result__ = {status:'error', message: '未执行'};
-        try {
-            ${script} 
-            __result__ = {status: "success", message: "脚本执行成功"};
-        } catch (error) {
-            __result__ = {status: "error", message: error.message};
-        }
-        app.endUndoGroup();
-        JSON.stringify(__result__);
+app.beginUndoGroup("Script-${id}");
+var TempComp = app.project.items.addComp("Temp Comp", 10, 10, 1, 10, 25);
+TempComp && TempComp.remove();
+var __result__ = {status:'error', message: '未执行'};
+(function () {
+try {
+    ${script} 
+    __result__ = {status: "success", message: "脚本执行成功"};
+} catch (error) {
+    __result__ = {status: "error", message: error.message};
+}
+}());
+app.endUndoGroup();
+JSON.stringify(__result__);
         `;
 
         let evalResult = {status:'start', message: '未知错误'};

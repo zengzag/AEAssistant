@@ -1,6 +1,7 @@
 import ChatService from './ChatService';
 import ApiKeyManager from '../ApiKeyManager';
 import { executeAEScript, AEUndo } from '../tools/executeAEScript.js';
+import { gatherProjectInformation } from '../tools/gatherProjectInformation.js';
 
 
 class AEGenerateAgent {
@@ -83,6 +84,14 @@ class AEGenerateAgent {
         return responseText;
     }
 
+    async getProjectInfo() {
+        const projectInfo = await gatherProjectInformation();
+        if (projectInfo.status === "success") {
+            return JSON.stringify(projectInfo.message);
+        }
+        return null;
+    }
+
     async executeScript(script) {
         this.notifyChunk("\n脚本执行中...\n");
         let executeResult = await executeAEScript(script);
@@ -127,6 +136,11 @@ class AEGenerateAgent {
         this.resetApiKey();
         this.notifyChunk("生成脚本中...\n");
         this.chatService.clearChatHistory();
+
+        const projectInfo = await this.getProjectInfo();
+        if (projectInfo !== null) {
+            message = "当前AE工程项目信息：\n" + projectInfo + "\n\n需求：" + message;
+        }
 
         const script = await this.getScript(message);
         if (!script) return;

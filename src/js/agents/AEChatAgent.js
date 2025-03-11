@@ -1,5 +1,27 @@
 import ChatService from './ChatService';
 import ApiKeyManager from '../ApiKeyManager';
+import { gatherProjectInformation } from '../tools/gatherProjectInformation.js';
+
+const tools = {
+    "tools": [
+        {
+            "type": "function",
+            "function": {
+                "name": "get_project_info",
+                "description": "Retrieve the compositions, layers, and other related information from the current After Effects project.",
+                "parameters": {
+                    "type": "object",
+                    "properties": {}
+                }
+            }
+        }
+    ],
+    "function_call": {
+        "get_project_info": async () => {
+            return gatherProjectInformation();
+        }
+    }
+}
 
 class AEChatAgent {
     constructor() {
@@ -10,7 +32,8 @@ class AEChatAgent {
             ApiKeyManagerInstance.getModelChat(),
             {},
             '你是一个精通after effects软件的专家，请用你的专业性指导用户解决问题。请尽量用最简洁的方式回答问题。',
-            false,
+            true,
+            tools,
         );
         this.onChunk = null;
         this.onError = null;
@@ -33,10 +56,10 @@ class AEChatAgent {
         );
     }
 
-    clearChatHistory(){
+    clearChatHistory() {
         this.chatService.clearChatHistory();
     }
-    
+
     async resetMessage() {
         this.resetApiKey();
         await this.chatService.resetMessage();

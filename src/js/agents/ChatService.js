@@ -4,7 +4,8 @@ export default class ChatService {
         model = 'qwen2.5-coder-14b-instruct',
         model_context = {},
         system_prompt = '你是一个AI助手，你可以回答任何问题。',
-        enable_history = true
+        enable_history = true,
+        tools = [] 
     ) {
         this.onChunk = null;
         this.onError = null;
@@ -16,6 +17,11 @@ export default class ChatService {
         this.system_prompt = system_prompt;
         this.enable_history = enable_history;
         this.chat_history = [];
+        this.tools = tools; 
+    }
+
+    setTools(tools) {
+        this.tools = tools;
     }
 
     setServerConfig(baseUrl, apiKey, model) {
@@ -64,55 +70,19 @@ export default class ChatService {
     }
 
     async sendMessage(message) {
+        console.log("chat_history", this.chat_history)
         try {
             const messages = [{ role: 'system', content: this.system_prompt }];
             if (this.enable_history) {
                 messages.push(...this.chat_history);
             }
             messages.push({ role: 'user', content: message });
-            
-            const response = await fetch(this.baseUrl+'/chat/completions', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${this.apiKey}`
-                },
-                body: JSON.stringify({
-                    model: this.model,
-                    messages: messages,
-                    stream: true,
-                    ...this.model_context
-                })
-            });
-
-            const reader = response.body.getReader();
-            let responseText = '';
-            while (true) {
-                const { done, value } = await reader.read();
-                if (done) break;
-
-                const chunk = new TextDecoder().decode(value);
-                const lines = chunk.split('\n');
-
-                for (let i = 0; i < lines.length; i++) {
-                    const line = lines[i];
-                    if (line.startsWith('data: ')) {
-                        const data = line.slice(6);
-                        if (data === '[DONE]') continue;
-
-                        const json = JSON.parse(data);
-                        const content = json.choices[0].delta.content;
-                        if (content) responseText += content;
-                        if (content && this.onChunk) {
-                            this.onChunk(content);
-                        }
-                    }
-                }
-            }
+            this.addChatHistory('user', message);
+            const response = await this.makeRequest(messages);
+            const responseText = await this.processResponse(response, messages);
 
             if (this.onFinish) {
                 this.onFinish(responseText);
-                this.addChatHistory('user', message);
                 this.addChatHistory('assistant', responseText);
             }
         } catch (error) {
@@ -122,4 +92,88 @@ export default class ChatService {
             }
         }
     }
+
+    async makeRequest(messages) {
+        console.log('messages', messages);
+        return await fetch(this.baseUrl + '/chat/completions', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${this.apiKey}`
+            },
+            body: JSON.stringify({
+                model: this.model,
+                messages: messages,
+                stream: true,
+                tools: this.tools.tools,
+                ...this.model_context
+            })
+        });
+    }
+
+    async processResponse(response, messages) {
+        const reader = response.body.getReader();
+        let responseText = '';
+        let tool_calls = [];
+        while (true) {
+            const { done, value } = await reader.read();
+            if (done) break;
+
+            const chunk = new TextDecoder().decode(value);
+            const lines = chunk.split('\n');
+
+            for (let i = 0; i < lines.length; i++) {
+                const line = lines[i];
+                if (line.startsWith('data: ')) {
+                    const data = line.slice(6);
+                    if (data === '[DONE]') continue;
+
+                    const json = JSON.parse(data);
+                    const delta = json.choices[0].delta;
+                    const content = delta.content;
+                    if (content) responseText += content;
+                    if (content && this.onChunk) {
+                        this.onChunk(content);
+                    }
+
+                    if (delta.tool_calls && delta.tool_calls.length > 0) {
+                        for( let j = 0; j < delta.tool_calls.length; j++) {
+                            const toolCall = delta.tool_calls[j];
+                            if (tool_calls.length <= j) {
+                                tool_calls.push(toolCall);
+                            } else {
+                                tool_calls[j].function.name += toolCall.function.name;
+                                tool_calls[j].function.arguments += toolCall.function.arguments;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        if (tool_calls && tool_calls.length > 0) {
+            this.chat_history.push({role: 'assistant', tool_calls: tool_calls});
+            let newMessages = [...messages, {role: 'assistant', tool_calls: tool_calls}];
+            for (const toolCall of tool_calls) {
+                const { name, parameters } = toolCall.function;
+                const tool_func = this.tools.function_call[name];
+                if (tool_func) {
+                    try {
+                        const result = await tool_func(parameters);
+                        const toolResults = { role: 'tool', name: name, tool_call_id: toolCall.id, content: JSON.stringify(result) }
+                        this.chat_history.push(toolResults); 
+                        newMessages = [...newMessages, toolResults];
+                    } catch (error) {
+                        const errorMessage = error instanceof Error ? error.message : String(error);
+                        if (this.onError) {
+                            this.onError(`Tool call error: ${errorMessage}`);
+                        }
+                    }
+                }
+            }
+            const newResponse = await this.makeRequest(newMessages);
+            responseText = await this.processResponse(newResponse, newMessages);
+        }
+        return responseText;
+    }
+
 }

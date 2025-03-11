@@ -12,13 +12,29 @@ AEAssistant 是一个用于 After Effects 的辅助工具，借助大语言模�
 
 
 ## 安装与使用
-### 安装
+### 编译
 克隆仓库并安装依赖：
 ```bash
 git clone <仓库地址>
 cd AEAssistant
 npm install
 ```
+编译项目：
+```bash
+npm run build
+```
+### 安装
+编译完成后，您可以在 `release` 目录下找到安装包。以下为您提供两种安装方法：
+
+#### 方法一：使用 ZXPInstaller
+1. 下载安装 [ZXPInstaller](https://zxpinstaller.com/) 。
+2. 将安装包拖拽到ZXPInstaller界面进行安装。
+
+#### 方法二：手动解压安装
+1. 将 `.zxp` 文件重命名为 `.zip` 。
+2. 解压文件到 AE 插件目录：
+    - **Windows 系统**：`C:\Users\[ USER ]\AppData\Roaming\Adobe\CEP\extensions\`
+    - **Mac 系统**：`/Library/Application Support/Adobe/CEP/extensions/`
 
 ## WIP
 持续更新中...

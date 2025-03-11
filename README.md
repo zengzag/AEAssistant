@@ -22,6 +22,7 @@ npm install
 编译项目：
 ```bash
 npm run build
+npm run sign
 ```
 ### 安装
 编译完成后，您可以在 `release` 目录下找到安装包。以下为您提供两种安装方法：

@@ -19,6 +19,7 @@ const tools = {
     "function_call": {
         "get_project_info": async () => {
             return gatherProjectInformation();
+            // return "空项目";
         }
     }
 }
@@ -33,7 +34,7 @@ class AEChatAgent {
             {},
             '你是一个精通after effects软件的专家，请用你的专业性指导用户解决问题。请尽量用最简洁的方式回答问题。',
             true,
-            tools,
+            ApiKeyManagerInstance.getSupportToolCallsChat() ? tools : {tools:[], function_call: {}},
         );
         this.onChunk = null;
         this.onError = null;
@@ -54,6 +55,7 @@ class AEChatAgent {
             ApiKeyManagerInstance.getApiKeyChat(),
             ApiKeyManagerInstance.getModelChat()
         );
+        this.chatService.setTools(ApiKeyManagerInstance.getSupportToolCallsChat()? tools : {tools:[], function_call: {}});
     }
 
     clearChatHistory() {

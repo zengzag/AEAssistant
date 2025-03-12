@@ -5,7 +5,7 @@ export default class ChatService {
         model_context = {},
         system_prompt = '你是一个AI助手，你可以回答任何问题。',
         enable_history = true,
-        tools = [] 
+        tools = {tools:[], function_call: {}} 
     ) {
         this.onChunk = null;
         this.onError = null;
@@ -70,7 +70,7 @@ export default class ChatService {
     }
 
     async sendMessage(message) {
-        console.log("chat_history", this.chat_history)
+        // console.log("chat_history", this.chat_history)
         try {
             const messages = [{ role: 'system', content: this.system_prompt }];
             if (this.enable_history) {
@@ -94,7 +94,7 @@ export default class ChatService {
     }
 
     async makeRequest(messages) {
-        console.log('messages', messages);
+        // console.log('messages', messages);
         return await fetch(this.baseUrl + '/chat/completions', {
             method: 'POST',
             headers: {
@@ -114,7 +114,7 @@ export default class ChatService {
     async processResponse(response, messages) {
         const reader = response.body.getReader();
         let responseText = '';
-        let tool_calls = [];
+        let final_tool_calls = {};
         while (true) {
             const { done, value } = await reader.read();
             if (done) break;
@@ -139,39 +139,52 @@ export default class ChatService {
                     if (delta.tool_calls && delta.tool_calls.length > 0) {
                         for( let j = 0; j < delta.tool_calls.length; j++) {
                             const toolCall = delta.tool_calls[j];
-                            if (tool_calls.length <= j) {
-                                tool_calls.push(toolCall);
-                            } else {
-                                tool_calls[j].function.name += toolCall.function.name;
-                                tool_calls[j].function.arguments += toolCall.function.arguments;
+                            const index = toolCall.index;
+                            if (!(index in final_tool_calls)) {
+                                final_tool_calls[index] = toolCall;
+                            }else if (toolCall.function) {
+                                if (toolCall.function.name) 
+                                    final_tool_calls[index].function.name += toolCall.function.name;
+                                if (toolCall.function.arguments)
+                                    final_tool_calls[index].function.arguments += toolCall.function.arguments;
                             }
                         }
                     }
                 }
             }
         }
-        if (tool_calls && tool_calls.length > 0) {
-            this.chat_history.push({role: 'assistant', tool_calls: tool_calls});
-            let newMessages = [...messages, {role: 'assistant', tool_calls: tool_calls}];
-            for (const toolCall of tool_calls) {
+        if (Object.keys(final_tool_calls).length > 0) {
+            console.log('final_tool_calls', final_tool_calls);
+            let findCallFunction = false;
+            for (const index in final_tool_calls)
+            {
+                const toolCall = final_tool_calls[index];
                 const { name, parameters } = toolCall.function;
                 const tool_func = this.tools.function_call[name];
                 if (tool_func) {
                     try {
                         const result = await tool_func(parameters);
+                        if (!findCallFunction) {
+                            this.chat_history.push({role: 'assistant', final_tool_calls: final_tool_calls});
+                            messages = [...messages, {role: 'assistant', final_tool_calls: final_tool_calls}];
+                            findCallFunction = true;
+                        }
                         const toolResults = { role: 'tool', name: name, tool_call_id: toolCall.id, content: JSON.stringify(result) }
                         this.chat_history.push(toolResults); 
-                        newMessages = [...newMessages, toolResults];
+                        messages = [...messages, toolResults];
                     } catch (error) {
                         const errorMessage = error instanceof Error ? error.message : String(error);
+                        console.error('Tool call error:', errorMessage);
                         if (this.onError) {
                             this.onError(`Tool call error: ${errorMessage}`);
                         }
                     }
                 }
             }
-            const newResponse = await this.makeRequest(newMessages);
-            responseText = await this.processResponse(newResponse, newMessages);
+            if (findCallFunction) {
+                const newResponse = await this.makeRequest(messages);
+                responseText = await this.processResponse(newResponse, messages);
+            }
         }
         return responseText;
     }

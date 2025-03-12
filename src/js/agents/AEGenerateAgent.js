@@ -109,7 +109,7 @@ class AEGenerateAgent {
         this.notifyChunk("\n脚本执行失败，error: " + executeResult.message + "\n");
 
         let retryCount = 0;
-        while (executeResult.status === "error" && retryCount < 5) {
+        while (executeResult.status === "error" && retryCount < 10) {
             this.notifyChunk("\n重新生成脚本中\n");
             const newMessage = "脚本执行失败，error: " + executeResult.message + "\n请重新生成脚本。";
             const newScript = await this.getScript(newMessage);

@@ -13,17 +13,20 @@ function SettingsPanel() {
         modelChat: apiKeyManager.getModelChat(),
         baseUrlGen: apiKeyManager.getBaseUrlGen(),
         apiKeyGen: apiKeyManager.getApiKeyGen(),
-        modelGen: apiKeyManager.getModelGen()
+        modelGen: apiKeyManager.getModelGen(),
+        supportToolCallsChat: apiKeyManager.getSupportToolCallsChat(),
+        supportToolCallsGen: apiKeyManager.getSupportToolCallsGen()
     });
 
     const handleSubmit = (values) => {
-        // console.log('Form values:', values);
         apiKeyManager.setBaseUrlChat(values.baseUrlChat);
         apiKeyManager.setApiKeyChat(values.apiKeyChat);
         apiKeyManager.setModelChat(values.modelChat);
         apiKeyManager.setBaseUrlGen(values.baseUrlGen);
         apiKeyManager.setApiKeyGen(values.apiKeyGen);
         apiKeyManager.setModelGen(values.modelGen);
+        apiKeyManager.setSupportToolCallsChat(values.supportToolCallsChat);
+        apiKeyManager.setSupportToolCallsGen(values.supportToolCallsGen);
     };
 
     const handleReset = () => {
@@ -33,7 +36,9 @@ function SettingsPanel() {
             modelChat: apiKeyManager.getModelChat(),
             baseUrlGen: apiKeyManager.getBaseUrlGen(),
             apiKeyGen: apiKeyManager.getApiKeyGen(),
-            modelGen: apiKeyManager.getModelGen()
+            modelGen: apiKeyManager.getModelGen(),
+            supportToolCallsChat: apiKeyManager.getSupportToolCallsChat(),
+            supportToolCallsGen: apiKeyManager.getSupportToolCallsGen()
         });
     };
 
@@ -63,6 +68,10 @@ function SettingsPanel() {
                     label="Model Name"
                     style={{ width: '100%' }}
                 />
+                <Form.Switch
+                    field="supportToolCallsChat"
+                    label="支持 Tool Calls"
+                />
 
                 <Title level={4} style={{ marginTop: '20px' }}>生成模式设置</Title>
                 <Form.Input
@@ -80,6 +89,10 @@ function SettingsPanel() {
                     field="modelGen"
                     label="Model Name"
                     style={{ width: '100%' }}
+                />
+                <Form.Switch
+                    field="supportToolCallsGen"
+                    label="支持 Tool Calls"
                 />
 
                 <Space style={{ marginTop: '20px' }}>

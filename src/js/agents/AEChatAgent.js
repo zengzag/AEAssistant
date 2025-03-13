@@ -1,26 +1,15 @@
 import ChatService from './ChatService';
 import ApiKeyManager from '../ApiKeyManager';
-import { gatherProjectInformation } from '../tools/gatherProjectInformation.js';
+import { AEInfoTools } from '../tools/gatherProjectInformation.js';
 
 const tools = {
     "tools": [
-        {
-            "type": "function",
-            "function": {
-                "name": "get_project_info",
-                "description": "Retrieve the compositions, layers, and other related information from the current After Effects project.",
-                "parameters": {
-                    "type": "object",
-                    "properties": {}
-                }
-            }
-        }
+        AEInfoTools.get_project_info.tool_definition,
+        AEInfoTools.get_actived_comp_info.tool_definition,
     ],
     "function_call": {
-        "get_project_info": async () => {
-            return gatherProjectInformation();
-            // return "空项目";
-        }
+        get_project_info: AEInfoTools.get_project_info.function_call,
+        get_actived_comp_info: AEInfoTools.get_actived_comp_info.function_call,
     }
 }
 

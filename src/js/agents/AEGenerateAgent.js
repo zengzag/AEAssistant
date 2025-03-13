@@ -1,7 +1,7 @@
 import ChatService from './ChatService';
 import ApiKeyManager from '../ApiKeyManager';
 import { executeAEScript, AEUndo } from '../tools/executeAEScript.js';
-import { gatherProjectInformation } from '../tools/gatherProjectInformation.js';
+import { gatherActivedCompInfo } from '../tools/gatherProjectInformation.js';
 
 
 class AEGenerateAgent {
@@ -84,10 +84,10 @@ class AEGenerateAgent {
         return responseText;
     }
 
-    async getProjectInfo() {
-        const projectInfo = await gatherProjectInformation();
-        if (projectInfo.status === "success") {
-            return JSON.stringify(projectInfo.message);
+    async getActivedCompInfo() {
+        const activedComp = await gatherActivedCompInfo();
+        if (activedComp.status === "success") {
+            return JSON.stringify(activedComp.message);
         }
         return null;
     }
@@ -137,9 +137,9 @@ class AEGenerateAgent {
         this.notifyChunk("生成脚本中...\n");
         this.chatService.clearChatHistory();
 
-        const projectInfo = await this.getProjectInfo();
-        if (projectInfo !== null) {
-            message = "当前AE工程项目信息：\n" + projectInfo + "\n\n需求：" + message;
+        const compInfo = await this.getActivedCompInfo();
+        if (compInfo !== null) {
+            message = "AE中当前正打开的合成信息：\n" + compInfo + "\n\n用户需求：" + message;
         }
 
         const script = await this.getScript(message);

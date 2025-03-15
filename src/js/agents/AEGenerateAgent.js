@@ -168,6 +168,10 @@ if (activeComp && activeComp instanceof CompItem) {
         while (executeResult.status === "error" && retryCount < 10) {
             this.notifyChunk("\n重新生成脚本中\n");
             const newMessage = "脚本执行失败，error: " + executeResult.message + "\n请重新生成脚本。";
+            if (this.chatService.chat_history.length >= 4) {
+                // 移除部分历史记录，节省token
+                this.chatService.chat_history.splice(1, 2);
+            }
             const newScript = await this.getScript(newMessage);
             if (!newScript) return;
 

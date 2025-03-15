@@ -12,6 +12,7 @@ AEAssistant 是一个用于 After Effects 的辅助工具，借助大语言模�
 
 
 ## 安装与使用
+你可以选择自己重新编译，或者直接下载已编译好的装包：release/com.zag.aeassistant.zxp
 ### 编译
 克隆仓库并安装依赖：
 ```bash

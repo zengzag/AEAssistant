@@ -14,7 +14,7 @@ try {
     ${script} 
     __result__ = {status: "success", message: "脚本执行成功"};
 } catch (error) {
-    __result__ = {status: "error", message: error.message};
+    __result__ = {status: "error", message: JSON.stringify({message: error.message, line: error.line-7})};
 }
 }());
 app.endUndoGroup();
